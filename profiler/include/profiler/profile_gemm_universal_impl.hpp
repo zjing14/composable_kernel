@@ -230,7 +230,7 @@ bool profile_gemm_universal_impl(int do_verification,
         }
         else
         {
-            b_k_n_permute(i * K + j) = b_k_n(i * K + j);
+            b_k_n_permute = b_k_n;
         }
 
         b_device_buf.ToDevice(b_k_n_permute.mData.data());
