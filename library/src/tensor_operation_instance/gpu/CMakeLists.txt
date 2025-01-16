@@ -67,6 +67,14 @@ function(add_instance_library INSTANCE_NAME)
             list(REMOVE_ITEM ARGN "${source}")
         endif()
     endforeach()
+
+    foreach(source IN LISTS ARGN)
+        if(NOT(source MATCHES "device_grouped_conv" OR source MATCHES "device_conv"))
+            message("removing instance ${source} except conv")
+            list(REMOVE_ITEM ARGN "${source}")
+        endif()
+    endforeach()
+
     # Do not build mha instances if gfx94 or gfx90a targets are not on the target list
     foreach(source IN LISTS ARGN)
 	    if(NOT INST_TARGETS MATCHES "gfx94" AND NOT INST_TARGETS MATCHES "gfx90a" AND source MATCHES "mha")
@@ -284,53 +292,53 @@ ENDFOREACH()
 
 
 
-if(CK_DEVICE_OTHER_INSTANCES)
-        add_library(device_other_operations STATIC ${CK_DEVICE_OTHER_INSTANCES})
-        add_library(composablekernels::device_other_operations ALIAS device_other_operations)
-        set_target_properties(device_other_operations PROPERTIES POSITION_INDEPENDENT_CODE ON)
-        target_include_directories(device_other_operations PUBLIC
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck>
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/utility>
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/tensor_description>
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/tensor>
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/problem_transform>
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/tensor_operation/gpu/device>
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/tensor_operation/gpu/device/impl>
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/tensor_operation/gpu/grid>
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/tensor_operation/gpu/block>
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/tensor_operation/gpu/warp>
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/tensor_operation/gpu/thread>
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/tensor_operation/gpu/element>
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/library/utility>
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/library/tensor_operation_instance>
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/library/tensor_operation_instance/gpu>
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/library/tensor_operation_instance/gpu/quantization>
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/library/tensor_operation_instance/gpu/softmax>
-        )
-        rocm_install(TARGETS device_other_operations
-            EXPORT device_other_operationsTargets)
-        rocm_install(EXPORT device_other_operationsTargets
-            FILE composable_kerneldevice_other_operationsTargets.cmake
-            NAMESPACE composable_kernel::
-            DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/composable_kernel
-        )
-endif()
-if(CK_DEVICE_GEMM_INSTANCES)
-        add_library(device_gemm_operations STATIC ${CK_DEVICE_GEMM_INSTANCES})
-        add_library(composablekernels::device_gemm_operations ALIAS device_gemm_operations)
-        target_compile_features(device_gemm_operations PUBLIC)
-        set_target_properties(device_gemm_operations PROPERTIES POSITION_INDEPENDENT_CODE ON)
-        target_include_directories(device_gemm_operations PUBLIC
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/library/tensor_operation_instance/gpu>
-        )
-        rocm_install(TARGETS device_gemm_operations
-            EXPORT device_gemm_operationsTargets)
-        rocm_install(EXPORT device_gemm_operationsTargets
-            FILE composable_kerneldevice_gemm_operationsTargets.cmake
-            NAMESPACE composable_kernel::
-            DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/composable_kernel
-        )
-endif()
+#if(CK_DEVICE_OTHER_INSTANCES)
+        #add_library(device_other_operations STATIC ${CK_DEVICE_OTHER_INSTANCES})
+        #add_library(composablekernels::device_other_operations ALIAS device_other_operations)
+        #set_target_properties(device_other_operations PROPERTIES POSITION_INDEPENDENT_CODE ON)
+        #target_include_directories(device_other_operations PUBLIC
+            #$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck>
+            #$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/utility>
+            #$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/tensor_description>
+            #$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/tensor>
+            #$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/problem_transform>
+            #$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/tensor_operation/gpu/device>
+            #$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/tensor_operation/gpu/device/impl>
+            #$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/tensor_operation/gpu/grid>
+            #$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/tensor_operation/gpu/block>
+            #$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/tensor_operation/gpu/warp>
+            #$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/tensor_operation/gpu/thread>
+            #$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/tensor_operation/gpu/element>
+            #$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/library/utility>
+            #$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/library/tensor_operation_instance>
+            #$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/library/tensor_operation_instance/gpu>
+            #$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/library/tensor_operation_instance/gpu/quantization>
+            #$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/library/tensor_operation_instance/gpu/softmax>
+        #)
+        #rocm_install(TARGETS device_other_operations
+            #EXPORT device_other_operationsTargets)
+        #rocm_install(EXPORT device_other_operationsTargets
+            #FILE composable_kerneldevice_other_operationsTargets.cmake
+            #NAMESPACE composable_kernel::
+            #DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/composable_kernel
+        #)
+#endif()
+#if(CK_DEVICE_GEMM_INSTANCES)
+        #add_library(device_gemm_operations STATIC ${CK_DEVICE_GEMM_INSTANCES})
+        #add_library(composablekernels::device_gemm_operations ALIAS device_gemm_operations)
+        #target_compile_features(device_gemm_operations PUBLIC)
+        #set_target_properties(device_gemm_operations PROPERTIES POSITION_INDEPENDENT_CODE ON)
+        #target_include_directories(device_gemm_operations PUBLIC
+            #$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/library/tensor_operation_instance/gpu>
+        #)
+        #rocm_install(TARGETS device_gemm_operations
+            #EXPORT device_gemm_operationsTargets)
+        #rocm_install(EXPORT device_gemm_operationsTargets
+            #FILE composable_kerneldevice_gemm_operationsTargets.cmake
+            #NAMESPACE composable_kernel::
+            #DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/composable_kernel
+        #)
+#endif()
 if(CK_DEVICE_CONV_INSTANCES)
         add_library(device_conv_operations STATIC ${CK_DEVICE_CONV_INSTANCES})
         add_library(composablekernels::device_conv_operations ALIAS device_conv_operations)
@@ -351,56 +359,56 @@ if(CK_DEVICE_CONV_INSTANCES)
             DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/composable_kernel
         )
 endif()
-if(CK_DEVICE_MHA_INSTANCES)
-        set(gpu_list ${INST_TARGETS})
-	if(gpu_list MATCHES "gfx94" OR gpu_list MATCHES "gfx90a")
-            add_library(device_mha_operations STATIC ${CK_DEVICE_MHA_INSTANCES})
-            add_library(composablekernels::device_mha_operations ALIAS device_mha_operations)
-            target_compile_features(device_mha_operations PUBLIC)
-            set_target_properties(device_mha_operations PROPERTIES POSITION_INDEPENDENT_CODE ON)
+#if(CK_DEVICE_MHA_INSTANCES)
+        #set(gpu_list ${INST_TARGETS})
+	#if(gpu_list MATCHES "gfx94" OR gpu_list MATCHES "gfx90a")
+            #add_library(device_mha_operations STATIC ${CK_DEVICE_MHA_INSTANCES})
+            #add_library(composablekernels::device_mha_operations ALIAS device_mha_operations)
+            #target_compile_features(device_mha_operations PUBLIC)
+            #set_target_properties(device_mha_operations PROPERTIES POSITION_INDEPENDENT_CODE ON)
             
-            rocm_install(TARGETS device_mha_operations
-                EXPORT device_mha_operationsTargets)
-            rocm_install(EXPORT device_mha_operationsTargets
-                FILE composable_kerneldevice_mha_operationsTargets.cmake
-                NAMESPACE composable_kernel::
-                DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/composable_kernel
-            )
-        endif()
-endif()
-if(CK_DEVICE_CONTRACTION_INSTANCES)
-        add_library(device_contraction_operations STATIC ${CK_DEVICE_CONTRACTION_INSTANCES})
-        add_library(composablekernels::device_contraction_operations ALIAS device_contraction_operations)
-        target_compile_features(device_contraction_operations PUBLIC)
-        set_target_properties(device_contraction_operations PROPERTIES POSITION_INDEPENDENT_CODE ON)
-        target_include_directories(device_contraction_operations PUBLIC
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/library/tensor_operation_instance/gpu>
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/library/tensor_operation_instance/gpu/contraction>
-        )
-        rocm_install(TARGETS device_contraction_operations
-            EXPORT device_contraction_operationsTargets)
-        rocm_install(EXPORT device_contraction_operationsTargets
-            FILE composable_kerneldevice_contraction_operationsTargets.cmake
-            NAMESPACE composable_kernel::
-            DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/composable_kernel
-        )
-endif()
-if(CK_DEVICE_REDUCTION_INSTANCES)
-        add_library(device_reduction_operations STATIC ${CK_DEVICE_REDUCTION_INSTANCES})
-        add_library(composablekernels::device_reduction_operations ALIAS device_reduction_operations)
-        target_compile_features(device_reduction_operations PUBLIC)
-        set_target_properties(device_reduction_operations PROPERTIES POSITION_INDEPENDENT_CODE ON)
-        target_include_directories(device_reduction_operations PUBLIC
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/library/tensor_operation_instance/gpu/reduce>
-        )
-        rocm_install(TARGETS device_reduction_operations
-            EXPORT device_reduction_operationsTargets)
-        rocm_install(EXPORT device_reduction_operationsTargets
-            FILE composable_kerneldevice_reduction_operationsTargets.cmake
-            NAMESPACE composable_kernel::
-            DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/composable_kernel
-        )
-endif()
+            #rocm_install(TARGETS device_mha_operations
+                #EXPORT device_mha_operationsTargets)
+            #rocm_install(EXPORT device_mha_operationsTargets
+                #FILE composable_kerneldevice_mha_operationsTargets.cmake
+                #NAMESPACE composable_kernel::
+                #DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/composable_kernel
+            #)
+        #endif()
+#endif()
+#if(CK_DEVICE_CONTRACTION_INSTANCES)
+        #add_library(device_contraction_operations STATIC ${CK_DEVICE_CONTRACTION_INSTANCES})
+        #add_library(composablekernels::device_contraction_operations ALIAS device_contraction_operations)
+        #target_compile_features(device_contraction_operations PUBLIC)
+        #set_target_properties(device_contraction_operations PROPERTIES POSITION_INDEPENDENT_CODE ON)
+        #target_include_directories(device_contraction_operations PUBLIC
+            #$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/library/tensor_operation_instance/gpu>
+            #$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/library/tensor_operation_instance/gpu/contraction>
+        #)
+        #rocm_install(TARGETS device_contraction_operations
+            #EXPORT device_contraction_operationsTargets)
+        #rocm_install(EXPORT device_contraction_operationsTargets
+            #FILE composable_kerneldevice_contraction_operationsTargets.cmake
+            #NAMESPACE composable_kernel::
+            #DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/composable_kernel
+        #)
+#endif()
+#if(CK_DEVICE_REDUCTION_INSTANCES)
+        #add_library(device_reduction_operations STATIC ${CK_DEVICE_REDUCTION_INSTANCES})
+        #add_library(composablekernels::device_reduction_operations ALIAS device_reduction_operations)
+        #target_compile_features(device_reduction_operations PUBLIC)
+        #set_target_properties(device_reduction_operations PROPERTIES POSITION_INDEPENDENT_CODE ON)
+        #target_include_directories(device_reduction_operations PUBLIC
+            #$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ck/library/tensor_operation_instance/gpu/reduce>
+        #)
+        #rocm_install(TARGETS device_reduction_operations
+            #EXPORT device_reduction_operationsTargets)
+        #rocm_install(EXPORT device_reduction_operationsTargets
+            #FILE composable_kerneldevice_reduction_operationsTargets.cmake
+            #NAMESPACE composable_kernel::
+            #DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/composable_kernel
+        #)
+#endif()
 
 add_library(device_operations INTERFACE)
 target_link_libraries(device_operations INTERFACE
