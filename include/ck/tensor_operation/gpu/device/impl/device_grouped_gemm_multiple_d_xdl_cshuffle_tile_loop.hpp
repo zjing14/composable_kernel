@@ -92,13 +92,15 @@ __global__ void
 
     auto b2c_tile_map = OffsettedBlockToCTileMap(LocalBlock2ETileMap(1, 1), 1, 1);
 
+    static constexpr index_t kbatch = 1;
+
     do
     {
         // Find corresponding GEMM group for our tile
         while(!(tile_id >= gemm_tile_id_start && tile_id < gemm_tile_id_end) &&
               group_id < group_count)
         {
-            group_offset += grid_size_grp;
+            group_offset += grid_size_grp * kbatch;
             group_id++;
 
             if(group_id >= group_count)
@@ -119,7 +121,7 @@ __global__ void
             grid_size_grp = b2c_tile_map.CalculateGridSize(M, N);
 
             gemm_tile_id_start = group_offset;
-            gemm_tile_id_end   = group_offset + grid_size_grp;
+            gemm_tile_id_end   = group_offset + grid_size_grp * kbatch;
         }
 
         using DsGridPointer = decltype(GridwiseGemm::MakeDsGridPointer());
@@ -130,7 +132,6 @@ __global__ void
             p_ds_grid(i)    = static_cast<const DDataType*>(gemm_desc_ptr[group_id].p_ds_grid[i]);
         });
 
-        static constexpr index_t kbatch  = 1;
         static constexpr index_t k_grain = kbatch * KPerBlock;
         index_t K_split                  = (K + k_grain - 1) / k_grain * KPerBlock;
 
@@ -149,6 +150,10 @@ __global__ void
                                gemm_desc_ptr[group_id].StrideE,
                                kbatch);
 
+        const int k_id = (tile_id - gemm_tile_id_start) / grid_size_grp;
+
+        auto splitk_batch_offset = typename GridwiseGemm::SplitKBatchOffset(problem, k_id);
+
         if(has_main_k_block_loop)
         {
             if constexpr(BlkGemmPipelineVer == BlockGemmPipelineVersion::v1 ||
@@ -158,8 +163,10 @@ __global__ void
                                            true,
                                            InMemoryDataOperationEnum::Set,
                                            TailNumber::Full>(
-                    static_cast<const ADataType*>(gemm_desc_ptr[group_id].p_a_grid),
-                    static_cast<const BDataType*>(gemm_desc_ptr[group_id].p_b_grid),
+                    static_cast<const ADataType*>(gemm_desc_ptr[group_id].p_a_grid) +
+                        splitk_batch_offset.a_k_split_offset,
+                    static_cast<const BDataType*>(gemm_desc_ptr[group_id].p_b_grid) +
+                        splitk_batch_offset.b_k_split_offset,
                     p_ds_grid,
                     static_cast<EDataType*>(gemm_desc_ptr[group_id].p_e_grid),
                     static_cast<void*>(p_shared),
@@ -177,8 +184,10 @@ __global__ void
                                                true,
                                                InMemoryDataOperationEnum::Set,
                                                TailNumber::One>(
-                        static_cast<const ADataType*>(gemm_desc_ptr[group_id].p_a_grid),
-                        static_cast<const BDataType*>(gemm_desc_ptr[group_id].p_b_grid),
+                        static_cast<const ADataType*>(gemm_desc_ptr[group_id].p_a_grid) +
+                            splitk_batch_offset.a_k_split_offset,
+                        static_cast<const BDataType*>(gemm_desc_ptr[group_id].p_b_grid) +
+                            splitk_batch_offset.b_k_split_offset,
                         p_ds_grid,
                         static_cast<EDataType*>(gemm_desc_ptr[group_id].p_e_grid),
                         static_cast<void*>(p_shared),
@@ -194,8 +203,10 @@ __global__ void
                                                true,
                                                InMemoryDataOperationEnum::Set,
                                                TailNumber::Full>(
-                        static_cast<const ADataType*>(gemm_desc_ptr[group_id].p_a_grid),
-                        static_cast<const BDataType*>(gemm_desc_ptr[group_id].p_b_grid),
+                        static_cast<const ADataType*>(gemm_desc_ptr[group_id].p_a_grid) +
+                            splitk_batch_offset.a_k_split_offset,
+                        static_cast<const BDataType*>(gemm_desc_ptr[group_id].p_b_grid) +
+                            splitk_batch_offset.b_k_split_offset,
                         p_ds_grid,
                         static_cast<EDataType*>(gemm_desc_ptr[group_id].p_e_grid),
                         static_cast<void*>(p_shared),
@@ -214,8 +225,10 @@ __global__ void
                                                    true,
                                                    InMemoryDataOperationEnum::Set,
                                                    TailNumber::Two>(
-                            static_cast<const ADataType*>(gemm_desc_ptr[group_id].p_a_grid),
-                            static_cast<const BDataType*>(gemm_desc_ptr[group_id].p_b_grid),
+                            static_cast<const ADataType*>(gemm_desc_ptr[group_id].p_a_grid) +
+                                splitk_batch_offset.a_k_split_offset,
+                            static_cast<const BDataType*>(gemm_desc_ptr[group_id].p_b_grid) +
+                                splitk_batch_offset.b_k_split_offset,
                             p_ds_grid,
                             static_cast<EDataType*>(gemm_desc_ptr[group_id].p_e_grid),
                             static_cast<void*>(p_shared),
@@ -235,8 +248,10 @@ __global__ void
                                                    true,
                                                    InMemoryDataOperationEnum::Set,
                                                    TailNumber::Three>(
-                            static_cast<const ADataType*>(gemm_desc_ptr[group_id].p_a_grid),
-                            static_cast<const BDataType*>(gemm_desc_ptr[group_id].p_b_grid),
+                            static_cast<const ADataType*>(gemm_desc_ptr[group_id].p_a_grid) +
+                                splitk_batch_offset.a_k_split_offset,
+                            static_cast<const BDataType*>(gemm_desc_ptr[group_id].p_b_grid) +
+                                splitk_batch_offset.b_k_split_offset,
                             p_ds_grid,
                             static_cast<EDataType*>(gemm_desc_ptr[group_id].p_e_grid),
                             static_cast<void*>(p_shared),
@@ -256,8 +271,10 @@ __global__ void
                                                    true,
                                                    InMemoryDataOperationEnum::Set,
                                                    TailNumber::Four>(
-                            static_cast<const ADataType*>(gemm_desc_ptr[group_id].p_a_grid),
-                            static_cast<const BDataType*>(gemm_desc_ptr[group_id].p_b_grid),
+                            static_cast<const ADataType*>(gemm_desc_ptr[group_id].p_a_grid) +
+                                splitk_batch_offset.a_k_split_offset,
+                            static_cast<const BDataType*>(gemm_desc_ptr[group_id].p_b_grid) +
+                                splitk_batch_offset.b_k_split_offset,
                             p_ds_grid,
                             static_cast<EDataType*>(gemm_desc_ptr[group_id].p_e_grid),
                             static_cast<void*>(p_shared),
@@ -277,8 +294,10 @@ __global__ void
                                                    true,
                                                    InMemoryDataOperationEnum::Set,
                                                    TailNumber::Five>(
-                            static_cast<const ADataType*>(gemm_desc_ptr[group_id].p_a_grid),
-                            static_cast<const BDataType*>(gemm_desc_ptr[group_id].p_b_grid),
+                            static_cast<const ADataType*>(gemm_desc_ptr[group_id].p_a_grid) +
+                                splitk_batch_offset.a_k_split_offset,
+                            static_cast<const BDataType*>(gemm_desc_ptr[group_id].p_b_grid) +
+                                splitk_batch_offset.b_k_split_offset,
                             p_ds_grid,
                             static_cast<EDataType*>(gemm_desc_ptr[group_id].p_e_grid),
                             static_cast<void*>(p_shared),
@@ -298,8 +317,10 @@ __global__ void
                                                    true,
                                                    InMemoryDataOperationEnum::Set,
                                                    TailNumber::Six>(
-                            static_cast<const ADataType*>(gemm_desc_ptr[group_id].p_a_grid),
-                            static_cast<const BDataType*>(gemm_desc_ptr[group_id].p_b_grid),
+                            static_cast<const ADataType*>(gemm_desc_ptr[group_id].p_a_grid) +
+                                splitk_batch_offset.a_k_split_offset,
+                            static_cast<const BDataType*>(gemm_desc_ptr[group_id].p_b_grid) +
+                                splitk_batch_offset.b_k_split_offset,
                             p_ds_grid,
                             static_cast<EDataType*>(gemm_desc_ptr[group_id].p_e_grid),
                             static_cast<void*>(p_shared),
@@ -319,8 +340,10 @@ __global__ void
                                                    true,
                                                    InMemoryDataOperationEnum::Set,
                                                    TailNumber::Seven>(
-                            static_cast<const ADataType*>(gemm_desc_ptr[group_id].p_a_grid),
-                            static_cast<const BDataType*>(gemm_desc_ptr[group_id].p_b_grid),
+                            static_cast<const ADataType*>(gemm_desc_ptr[group_id].p_a_grid) +
+                                splitk_batch_offset.a_k_split_offset,
+                            static_cast<const BDataType*>(gemm_desc_ptr[group_id].p_b_grid) +
+                                splitk_batch_offset.b_k_split_offset,
                             p_ds_grid,
                             static_cast<EDataType*>(gemm_desc_ptr[group_id].p_e_grid),
                             static_cast<void*>(p_shared),
@@ -341,8 +364,10 @@ __global__ void
                                                     true,
                                                     InMemoryDataOperationEnum::Set,
                                                     TailNumber::Odd>(
-                        static_cast<const ADataType*>(gemm_desc_ptr[group_id].p_a_grid),
-                        static_cast<const BDataType*>(gemm_desc_ptr[group_id].p_b_grid),
+                        static_cast<const ADataType*>(gemm_desc_ptr[group_id].p_a_grid) +
+                            splitk_batch_offset.a_k_split_offset,
+                        static_cast<const BDataType*>(gemm_desc_ptr[group_id].p_b_grid) +
+                            splitk_batch_offset.b_k_split_offset,
                         p_ds_grid,
                         static_cast<EDataType*>(gemm_desc_ptr[group_id].p_e_grid),
                         static_cast<void*>(p_shared),
@@ -359,8 +384,10 @@ __global__ void
                                                     true,
                                                     InMemoryDataOperationEnum::Set,
                                                     TailNumber::Even>(
-                        static_cast<const ADataType*>(gemm_desc_ptr[group_id].p_a_grid),
-                        static_cast<const BDataType*>(gemm_desc_ptr[group_id].p_b_grid),
+                        static_cast<const ADataType*>(gemm_desc_ptr[group_id].p_a_grid) +
+                            splitk_batch_offset.a_k_split_offset,
+                        static_cast<const BDataType*>(gemm_desc_ptr[group_id].p_b_grid) +
+                            splitk_batch_offset.b_k_split_offset,
                         p_ds_grid,
                         static_cast<EDataType*>(gemm_desc_ptr[group_id].p_e_grid),
                         static_cast<void*>(p_shared),
@@ -381,8 +408,10 @@ __global__ void
                                            false,
                                            InMemoryDataOperationEnum::Set,
                                            TailNumber::Full>(
-                    static_cast<const ADataType*>(gemm_desc_ptr[group_id].p_a_grid),
-                    static_cast<const BDataType*>(gemm_desc_ptr[group_id].p_b_grid),
+                    static_cast<const ADataType*>(gemm_desc_ptr[group_id].p_a_grid) +
+                        splitk_batch_offset.a_k_split_offset,
+                    static_cast<const BDataType*>(gemm_desc_ptr[group_id].p_b_grid) +
+                        splitk_batch_offset.b_k_split_offset,
                     p_ds_grid,
                     static_cast<EDataType*>(gemm_desc_ptr[group_id].p_e_grid),
                     static_cast<void*>(p_shared),

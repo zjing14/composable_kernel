@@ -639,7 +639,7 @@ struct GridwiseGemmMultiD_xdl_cshuffle_v3
 
     struct SplitKBatchOffset
     {
-        __device__ SplitKBatchOffset(Argument& karg, index_t k_id)
+        __device__ SplitKBatchOffset(Problem& karg, index_t k_id)
         {
             if constexpr(is_same_v<tensor_layout::gemm::RowMajor, ALayout>)
             {
