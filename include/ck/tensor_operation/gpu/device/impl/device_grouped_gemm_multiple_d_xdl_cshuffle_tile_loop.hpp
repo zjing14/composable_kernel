@@ -57,10 +57,12 @@ template <typename GridwiseGemm,
           typename BElementwiseOperation,
           typename CDEElementwiseOperation,
           BlockGemmPipelineScheduler BlkGemmPipeSched,
-          BlockGemmPipelineVersion BlkGemmPipelineVer>
+          BlockGemmPipelineVersion BlkGemmPipelineVer,
+          index_t MinimumOccupancy = 1
+          >
 __global__ void
 #if CK_USE_LAUNCH_BOUNDS
-    __launch_bounds__(CK_MAX_THREAD_PER_BLOCK, CK_MIN_BLOCK_PER_CU)
+    __launch_bounds__(CK_MAX_THREAD_PER_BLOCK, MinimumOccupancy)
 #endif
         kernel_grouped_gemm_multiple_d_xdl(const void CK_CONSTANT_ADDRESS_SPACE* gemm_descs_const,
                                            const index_t group_count,
@@ -534,12 +536,9 @@ struct DeviceGroupedGemmMultipleDXdlCShuffleTileLoop
                  const std::vector<GemmDesc>& gemm_descs,
                  AElementwiseOperation a_element_op,
                  BElementwiseOperation b_element_op,
-                 CDEElementwiseOperation cde_element_op,
-                 int occupancy_num_blocks,
-                 int gpu_cu_count)
+                 CDEElementwiseOperation cde_element_op
+                 )
             : group_count_{static_cast<index_t>(gemm_descs.size())},
-              occupancy_num_blocks_{occupancy_num_blocks},
-              gpu_cu_count_{gpu_cu_count},
               gemm_descs_{gemm_descs},
               a_element_op_{a_element_op},
               b_element_op_{b_element_op},
@@ -557,8 +556,6 @@ struct DeviceGroupedGemmMultipleDXdlCShuffleTileLoop
 
         index_t group_count_;
         const void* p_dev_gemm_args_;
-        int occupancy_num_blocks_;
-        int gpu_cu_count_;
         const std::vector<GemmDesc>& gemm_descs_;
         AElementwiseOperation a_element_op_;
         BElementwiseOperation b_element_op_;
@@ -644,6 +641,22 @@ struct DeviceGroupedGemmMultipleDXdlCShuffleTileLoop
         }
 
         private:
+
+        static constexpr index_t MinimumOccupancy = []() {
+            if constexpr(BlkGemmPipeSched == BlockGemmPipelineScheduler::Interwave)
+            {
+                return 2;
+            }
+            else if constexpr(BlkGemmPipelineVer == BlockGemmPipelineVersion::v3)
+            {
+                return (MPerBlock * NPerBlock / BlockSize <= 128) ? 2 : 1;
+            }
+            else
+            {
+                return 1;
+            }
+        }();
+
         float DispatchKernel(const Argument& arg,
                              const void* dev_gemm_args,
                              const StreamConfig& stream_config) const
@@ -666,21 +679,30 @@ struct DeviceGroupedGemmMultipleDXdlCShuffleTileLoop
                                                                    BElementwiseOperation,
                                                                    CDEElementwiseOperation,
                                                                    BlkGemmPipeSched,
-                                                                   BlkGemmPipelineVer>;
+                                                                   BlkGemmPipelineVer,
+                                                                   MinimumOccupancy
+                                                                   >;
             return LaunchKernel(kernel, arg, dev_gemm_args, stream_config);
         }
+
 
         template <typename KernelFunction>
         int CalculateMaxOccupancyGridSize(const KernelFunction& kernel,
                                           const StreamConfig& stream_config) const
         {
             // Calculate max number of workgroups that can simultaneously reside on the CU.
+#if 1
             int occ_num_blocks            = 0;
             size_t dyn_shared_mem_per_blk = 0;
             hip_check_error(hipOccupancyMaxActiveBlocksPerMultiprocessor(
                 &occ_num_blocks, kernel, BlockSize, dyn_shared_mem_per_blk));
 
             int cu_count = getAvailableComputeUnitCount(stream_config);
+#else
+            std::ignore = kernel;
+            int occ_num_blocks            = MinimumOccupancy;
+            int cu_count = 304;
+#endif
 
             if(stream_config.log_level_ > 0)
             {
@@ -708,7 +730,6 @@ struct DeviceGroupedGemmMultipleDXdlCShuffleTileLoop
             }
 
             // run multiple kernels
-
             return launch_and_time_kernel(stream_config,
                                           kernel,
                                           dim3(grid_size),
@@ -789,35 +810,6 @@ struct DeviceGroupedGemmMultipleDXdlCShuffleTileLoop
                              BElementwiseOperation b_elementwise_op,
                              CDEElementwiseOperation cde_elementwise_op)
     {
-        const auto kernel = kernel_grouped_gemm_multiple_d_xdl<GridwiseGemm,
-                                                               KernelArguments,
-                                                               GemmSpec,
-                                                               ADataType,
-                                                               BDataType,
-                                                               DsDataType,
-                                                               EDataType,
-                                                               ALayout,
-                                                               BLayout,
-                                                               DsLayout,
-                                                               ELayout,
-                                                               KPerBlock,
-                                                               OffsettedLocalBlock2ETileMap,
-                                                               Block2ETileMap,
-                                                               AElementwiseOperation,
-                                                               BElementwiseOperation,
-                                                               CDEElementwiseOperation,
-                                                               BlkGemmPipeSched,
-                                                               BlkGemmPipelineVer>;
-        int occupancy, num_cu;
-        hip_check_error(
-            hipOccupancyMaxActiveBlocksPerMultiprocessor(&occupancy, kernel, BlockSize, 0));
-
-        hipDeviceProp_t dev_prop;
-        hipDevice_t dev;
-        hip_check_error(hipGetDevice(&dev));
-        hip_check_error(hipGetDeviceProperties(&dev_prop, dev));
-        num_cu = dev_prop.multiProcessorCount;
-
         return Argument{p_As,
                         p_Bs,
                         p_Ds,
@@ -825,9 +817,7 @@ struct DeviceGroupedGemmMultipleDXdlCShuffleTileLoop
                         gemm_descs,
                         a_elementwise_op,
                         b_elementwise_op,
-                        cde_elementwise_op,
-                        occupancy,
-                        num_cu};
+                        cde_elementwise_op};
     }
 
     std::unique_ptr<BaseArgument>
@@ -840,35 +830,6 @@ struct DeviceGroupedGemmMultipleDXdlCShuffleTileLoop
                         BElementwiseOperation b_elementwise_op,
                         CDEElementwiseOperation cde_elementwise_op) override
     {
-        const auto kernel = kernel_grouped_gemm_multiple_d_xdl<GridwiseGemm,
-                                                               KernelArguments,
-                                                               GemmSpec,
-                                                               ADataType,
-                                                               BDataType,
-                                                               DsDataType,
-                                                               EDataType,
-                                                               ALayout,
-                                                               BLayout,
-                                                               DsLayout,
-                                                               ELayout,
-                                                               KPerBlock,
-                                                               OffsettedLocalBlock2ETileMap,
-                                                               Block2ETileMap,
-                                                               AElementwiseOperation,
-                                                               BElementwiseOperation,
-                                                               CDEElementwiseOperation,
-                                                               BlkGemmPipeSched,
-                                                               BlkGemmPipelineVer>;
-        int occupancy, num_cu;
-        hip_check_error(
-            hipOccupancyMaxActiveBlocksPerMultiprocessor(&occupancy, kernel, BlockSize, 0));
-
-        hipDeviceProp_t dev_prop;
-        hipDevice_t dev;
-        hip_check_error(hipGetDevice(&dev));
-        hip_check_error(hipGetDeviceProperties(&dev_prop, dev));
-        num_cu = dev_prop.multiProcessorCount;
-
         return std::make_unique<Argument>(p_As,
                                           p_Bs,
                                           p_Ds,
@@ -876,9 +837,7 @@ struct DeviceGroupedGemmMultipleDXdlCShuffleTileLoop
                                           gemm_descs,
                                           a_elementwise_op,
                                           b_elementwise_op,
-                                          cde_elementwise_op,
-                                          occupancy,
-                                          num_cu);
+                                          cde_elementwise_op);
     }
 
     static auto MakeInvoker() { return Invoker{}; }
