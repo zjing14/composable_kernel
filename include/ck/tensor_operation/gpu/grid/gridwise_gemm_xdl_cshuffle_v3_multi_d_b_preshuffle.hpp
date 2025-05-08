@@ -33,7 +33,7 @@ template <typename GridwiseGemm,
           TailNumber TailNum       = TailNumber::Even>
 __global__ void
 #if CK_USE_LAUNCH_BOUNDS
-    __launch_bounds__(CK_MAX_THREAD_PER_BLOCK, MinimumOccupancy)
+__launch_bounds__(CK_MAX_THREAD_PER_BLOCK, MinimumOccupancy)
 #endif
     // __attribute__((amdgpu_waves_per_eu(1, 1)))
     kernel_gemm_xdl_cshuffle_v3_multi_d_b_preshuffle(typename GridwiseGemm::Argument karg)
@@ -65,7 +65,7 @@ template <typename GridwiseGemm,
           TailNumber TailNum       = TailNumber::Even>
 __global__ void
 #if CK_USE_LAUNCH_BOUNDS
-    __launch_bounds__(CK_MAX_THREAD_PER_BLOCK, MinimumOccupancy)
+__launch_bounds__(CK_MAX_THREAD_PER_BLOCK, MinimumOccupancy)
 #endif
     // __attribute__((amdgpu_waves_per_eu(1, 1)))
     kernel_gemm_xdl_cshuffle_v3_multi_d_b_preshuffle_2lds(typename GridwiseGemm::Argument karg)
@@ -171,9 +171,9 @@ struct GridwiseGemmMultiD_xdl_cshuffle_v3_b_preshuffle
     static constexpr index_t KLane =
         mfma_selector::GetKPerXdlops() / mfma_selector::GetK1PerXdlops();
     static constexpr index_t KPackPerGroup = KPack / KGroup;
-    static constexpr index_t KRepeat = KPerBlock / KLane / KPackPerGroup;
-    static constexpr index_t NLane   = NPerXdl;
-    static constexpr index_t NWave   = NPerBlock / NPerXdl / NXdlPerWave;
+    static constexpr index_t KRepeat       = KPerBlock / KLane / KPackPerGroup;
+    static constexpr index_t NLane         = NPerXdl;
+    static constexpr index_t NWave         = NPerBlock / NPerXdl / NXdlPerWave;
 
     static constexpr auto MakeDsGridPointer()
     {
