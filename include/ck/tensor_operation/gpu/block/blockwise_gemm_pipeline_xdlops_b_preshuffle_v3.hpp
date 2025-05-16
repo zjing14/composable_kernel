@@ -266,8 +266,12 @@ struct BlockwiseGemmXdlops_pipeline_bpreshuffle_v3<BlockGemmPipelineScheduler::I
         // B global read
         static_for<0, buffer_load_b_stages, 1>{}([&](auto i) {
             static_for<0, num_mfma_perstage, 1>{}([&](auto imfma) {
-                __builtin_amdgcn_sched_group_barrier(SCHED_GROUP_MFMA, 1, 0);
 
+                if constexpr(imfma >= (num_mfma_perstage - num_ds_read_a_mfma_perstage))
+                {
+                    __builtin_amdgcn_sched_group_barrier(
+                        SCHED_GROUP_LDS_READ, ds_read_a_mfma_rate, 0);
+                }
                 if constexpr(((i < buffer_load_stages_more) &&
                               (imfma % buffer_load_issue_point_interval_more == 0)) ||
                              ((i >= buffer_load_stages_more) &&
@@ -275,12 +279,7 @@ struct BlockwiseGemmXdlops_pipeline_bpreshuffle_v3<BlockGemmPipelineScheduler::I
                 {
                     __builtin_amdgcn_sched_group_barrier(SCHED_GROUP_VMEM, 1, 0);
                 }
-
-                if constexpr(imfma >= (num_mfma_perstage - num_ds_read_a_mfma_perstage))
-                {
-                    __builtin_amdgcn_sched_group_barrier(
-                        SCHED_GROUP_LDS_READ, ds_read_a_mfma_rate, 0);
-                }
+                __builtin_amdgcn_sched_group_barrier(SCHED_GROUP_MFMA, 1, 0);
             });
         });
 
@@ -293,7 +292,7 @@ struct BlockwiseGemmXdlops_pipeline_bpreshuffle_v3<BlockGemmPipelineScheduler::I
                              (((i + buffer_load_b_stages) >= buffer_load_stages_more) &&
                               (imfma % buffer_load_issue_point_interval_less == 0)))
                 {
-                    __builtin_amdgcn_sched_group_barrier(SCHED_GROUP_LDS_WRITE, 1, 0);
+                    __builtin_amdgcn_sched_group_barrier(SCHED_GROUP_VMEM, 1, 0);
                 }
                 if constexpr((((i + buffer_load_b_stages) < buffer_load_stages_more) &&
                               (imfma % buffer_load_issue_point_interval_more ==
@@ -302,7 +301,7 @@ struct BlockwiseGemmXdlops_pipeline_bpreshuffle_v3<BlockGemmPipelineScheduler::I
                               (imfma % buffer_load_issue_point_interval_less ==
                                buffer_load_issue_point_a)))
                 {
-                    __builtin_amdgcn_sched_group_barrier(SCHED_GROUP_VMEM, 1, 0);
+                    __builtin_amdgcn_sched_group_barrier(SCHED_GROUP_LDS_WRITE, 1, 0);
                 }
                 if constexpr(imfma >= (num_mfma_perstage - num_ds_read_a_mfma_perstage))
                 {

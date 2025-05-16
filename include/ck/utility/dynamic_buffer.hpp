@@ -343,7 +343,7 @@ struct DynamicBuffer
         {
             if(is_valid_element)
             {
-#if 0
+#if 1
                 X tmp = x;
 
                 __builtin_memcpy(&(p_data_[i]), &tmp, sizeof(X));
