@@ -11,7 +11,7 @@
 #include "ck/utility/env.hpp"
 #include "ck/stream_config.hpp"
 #include "ck/host_utility/hip_check_error.hpp"
-#include "ck/utility/flush_icache.hpp"
+//#include "ck/utility/flush_icache.hpp"
 namespace ck {
 namespace utility {
 
@@ -215,12 +215,14 @@ struct RotatingMemWrapper
 
 inline void flush_icache()
 {
+#if 0
     hipDeviceProp_t deviceProps;
     hip_check_error(hipGetDeviceProperties(&deviceProps, 0));
     int32_t gpu_block3 = deviceProps.multiProcessorCount * 60;
 
     ck::flush_icache<<<dim3(gpu_block3), dim3(64), 0, nullptr>>>();
     hip_check_error(hipGetLastError());
+#endif
 }
 // if TimePrePress == false, return time does not include preprocess's time
 template <bool TimePreprocess,
@@ -354,7 +356,7 @@ float launch_and_time_kernel_with_preprocess(const StreamConfig& stream_config,
         // return total_time / nrepeat;
         hipDeviceProp_t deviceProps;
         hip_check_error(hipGetDeviceProperties(&deviceProps, 0));
-        float preprocess_offset = deviceProps.multiProcessorCount == 80 ? 0.005 : 0.01;
+        float preprocess_offset = 0;
         return (total_time - preprocess_offset * nrepeat) / nrepeat;
 #endif
     }
