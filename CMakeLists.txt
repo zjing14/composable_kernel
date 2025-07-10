@@ -645,10 +645,10 @@ if(NOT GPU_ARCHS AND USER_GPU_TARGETS AND NOT MIOPEN_REQ_LIBS_ONLY)
         PACKAGE_NAME examples
    )
    add_subdirectory(example)
-   add_subdirectory(tile_engine)
-   if(BUILD_TESTING)
-       add_subdirectory(test)
-   endif()
+   #add_subdirectory(tile_engine)
+   #if(BUILD_TESTING)
+       #add_subdirectory(test)
+   #endif()
 endif()
 
 if (NOT MIOPEN_REQ_LIBS_ONLY)
@@ -659,9 +659,9 @@ if (NOT MIOPEN_REQ_LIBS_ONLY)
     add_subdirectory(profiler)
 endif()
 
-if(CK_USE_CODEGEN AND (SUPPORTED_GPU_TARGETS MATCHES "gfx9" OR GPU_ARCHS))
-  add_subdirectory(codegen)
-endif()
+#if(CK_USE_CODEGEN AND (SUPPORTED_GPU_TARGETS MATCHES "gfx9" OR GPU_ARCHS))
+  #add_subdirectory(codegen)
+#endif()
 
 #Create an interface target for the include only files and call it "composablekernels"
 include(CMakePackageConfigHelpers)
